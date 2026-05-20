@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0D0D1A" />
+  <title>UIX KERMES 2026 · LOGIN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <div class="bg-stars"></div>
+  <div class="bg-grid"></div>
+  <div class="vignette"></div>
+  <div class="scanlines"></div>
+
+  <div class="page-center">
+    <div class="brand-block">
+      <div class="brand">
+        <span class="brand-m">UIX</span><span class="brand-ai">KERMES</span>
+      </div>
+
+      <div class="date-tag">▸ REGISTRA TU PARTIDA</div>
+    </div>
+
+    <main class="login-card">
+      <form id="loginForm" class="login-form" autocomplete="off">
+        <div class="field">
+          <label class="field-label" for="firstName">▸ NOMBRE</label>
+          <input class="field-input" id="firstName" name="firstName" maxlength="40" required />
+        </div>
+        <div class="field">
+          <label class="field-label" for="lastName">▸ APELLIDO</label>
+          <input class="field-input" id="lastName" name="lastName" maxlength="40" required />
+        </div>
+        <div class="error-msg" id="errorMsg"></div>
+        <button class="btn" type="submit">
+          <span class="btn-arrow">▶</span>
+          <span>ENTRAR AL EVENTO</span>
+        </button>
+      </form>
+      <div class="login-foot">
+        RECOGE TU SCORE EN LA MAQUINITA ARCADE
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/login.js"></script>
+</body>
+
+</html>

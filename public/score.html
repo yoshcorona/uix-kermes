@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0D0D1A" />
+  <title>UIX KERMES · ARCADE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="arcade3d">
+
+  <canvas id="three"></canvas>
+  <div class="scanlines game-scanlines"></div>
+  <div class="vignette"></div>
+
+  <!-- HUD -->
+  <div class="arcade-hud">
+    <div class="hud-logo"><span class="brand-m">UIX</span><span class="brand-ai">KERMES</span></div>
+    <div class="h-name">▸ <span id="hudName">UIXER</span></div>
+    <div class="h-tip" id="hudTip">CLICK PARA EXPLORAR</div>
+  </div>
+
+  <button class="btn-ghost arcade-logout" id="logoutBtn">⏏ SALIR</button>
+  <button class="btn-ghost arcade-music" id="musicBtn">♪ MUSIC OFF</button>
+
+  <!-- Crosshair -->
+  <div id="crosshair"></div>
+
+  <!-- Pantalla de bienvenida (pointer lock) -->
+  <div id="lockHint">
+    <div class="lockhint-content">
+      <div class="lockhint-title">
+        <span class="brand-m">UIX</span><span class="brand-ai">KERMES</span>
+      </div>
+      <div class="lockhint-subtitle">ARCADE ROOM · TU SCORE</div>
+      <div class="lockhint-cta">CLICK PARA EXPLORAR</div>
+      <div class="lockhint-keys">
+        WASD · MOVERSE &nbsp;·&nbsp; MOUSE · MIRAR &nbsp;·&nbsp; E · INTERACTUAR &nbsp;·&nbsp; ESC · LIBERAR
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt de interacción -->
+  <div id="interactPrompt">
+    <div class="interact-key">[ E ]</div>
+    <div class="interact-label">VER TU SCORE</div>
+  </div>
+
+  <!-- Overlay del score (zoom en pantalla) -->
+  <div id="scoreOverlay">
+    <div class="score3d-frame">
+      <div class="score3d-content">
+        <div class="score3d-title">★ RANKING ★</div>
+        <div class="score3d-name" id="scoreName">TU LUGAR</div>
+        <div class="score3d-total" id="scoreTotal">000</div>
+        <div class="score3d-list" id="scoreList"></div>
+        <button class="score3d-back" id="scoreBack">◀ ATRÁS &nbsp;[ESC]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controles táctiles (mobile) -->
+  <div id="touchControls">
+    <div id="touchJoystick" class="touch-zone">
+      <div id="touchJoystickBase"><div id="touchJoystickKnob"></div></div>
+    </div>
+    <div id="touchLookZone" class="touch-zone"></div>
+    <button class="touch-btn touch-btn-action" id="touchActionE">E</button>
+  </div>
+
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <script src="/js/score.js"></script>
+</body>
+</html>

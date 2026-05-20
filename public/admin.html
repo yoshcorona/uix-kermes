@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0D0D1A" />
+  <title>UIX KERMES · ADMIN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="bg-stars"></div>
+  <div class="bg-grid"></div>
+  <div class="vignette"></div>
+  <div class="scanlines"></div>
+
+  <!-- Gate de password (mismo look del login) -->
+  <section id="adminGate" class="page-center">
+    <div class="brand-block">
+      <div class="brand">
+        <span class="brand-m">ADMIN</span><span class="brand-ai">UIX</span>
+      </div>
+      <div class="brand-sub">CONTROL ROOM · 2026</div>
+      <div class="date-tag">▸ ACCESO RESTRINGIDO</div>
+    </div>
+
+    <main class="login-card">
+      <form id="gateForm" class="login-form" autocomplete="off">
+        <div class="field">
+          <label class="field-label" for="adminPwd">▸ CONTRASEÑA</label>
+          <input class="field-input" id="adminPwd" type="password" required />
+        </div>
+        <div class="error-msg" id="gateError"></div>
+        <button class="btn" type="submit">
+          <span class="btn-arrow">▶</span>
+          <span>ENTRAR AL PANEL</span>
+        </button>
+      </form>
+      <div class="login-foot">SOLO STAFF DEL EVENTO</div>
+    </main>
+  </section>
+
+  <!-- Panel -->
+  <main id="adminApp" class="admin-page" style="display:none; width:100%;">
+    <div class="admin-wrap">
+
+      <header class="admin-head">
+        <div class="admin-title">
+          <span class="brand-m">UIX</span><span class="brand-ai">KERMES</span>
+        </div>
+        <div class="admin-sub">PANEL DE CONTROL</div>
+        <button class="btn-ghost admin-logout" id="adminLogout">⏏ CERRAR SESIÓN</button>
+      </header>
+
+      <section class="panel">
+        <div class="panel-title">▸ PODIO POR STAND</div>
+        <div class="stand-grid" id="standGrid"></div>
+        <div class="stand-actions stand-actions-global">
+          <button class="btn-ghost danger" id="clearAllBtn">⌫ LIMPIAR TODO</button>
+          <button class="btn-ghost primary" id="saveAllBtn">✓ GUARDAR TODO</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">★ LEADERBOARD GLOBAL ★</div>
+        <table class="leader-table">
+          <thead>
+            <tr>
+              <th class="col-rank">RANK</th>
+              <th>PARTICIPANTE</th>
+              <th class="col-total">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody id="leaderBody"></tbody>
+        </table>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">▸ PARTICIPANTES REGISTRADOS</div>
+        <table class="leader-table">
+          <thead>
+            <tr>
+              <th>NOMBRE</th>
+              <th>APELLIDO</th>
+              <th class="col-total">ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody id="participantsBody"></tbody>
+        </table>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>
