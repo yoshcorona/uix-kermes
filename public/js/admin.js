@@ -52,8 +52,14 @@ logoutBtn.addEventListener('click', logout);
 
 document.getElementById('saveAllBtn').addEventListener('click', async () => {
   try {
-    await Promise.all(STANDS.map(id => savePodiumSilent(id)));
-    showToast('Todos los stands guardados');
+    const promises = [];
+    for (const id of STANDS) {
+      for (let r = 1; r <= 5; r++) {
+        promises.push(savePodiumSilent(id, r));
+      }
+    }
+    await Promise.all(promises);
+    showToast('Todos los stands y rondas guardados');
     await loadLeaderboard();
   } catch (err) {
     showToast(err.message, true);
@@ -61,12 +67,9 @@ document.getElementById('saveAllBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('clearAllBtn').addEventListener('click', async () => {
-  if (!confirm('¿Borrar TODOS los podios? Esta acción no se puede deshacer.')) return;
+  if (!confirm('¿Borrar TODOS los podios de todas las rondas? Esta acción no se puede deshacer.')) return;
   try {
-    await Promise.all(STANDS.map(id => api(`/api/admin/stand/${id}/podium`, {
-      method: 'POST',
-      body: JSON.stringify({ first: null, second: null, third: null }),
-    })));
+    await api('/api/admin/clear-all', { method: 'POST' });
     standGrid.querySelectorAll('select[data-stand]').forEach(s => s.value = '');
     showToast('Todos los podios borrados');
     await loadLeaderboard();
@@ -75,14 +78,14 @@ document.getElementById('clearAllBtn').addEventListener('click', async () => {
   }
 });
 
-function savePodiumSilent(standId) {
+function savePodiumSilent(standId, round) {
   const get = pos => {
-    const sel = standGrid.querySelector(`select[data-stand="${standId}"][data-pos="${pos}"]`);
+    const sel = standGrid.querySelector(`select[data-stand="${standId}"][data-round="${round}"][data-pos="${pos}"]`);
     return sel ? (sel.value || null) : null;
   };
   return api(`/api/admin/stand/${standId}/podium`, {
     method: 'POST',
-    body: JSON.stringify({ first: get(1), second: get(2), third: get(3) }),
+    body: JSON.stringify({ round, first: get(1), second: get(2), third: get(3) }),
   });
 }
 
@@ -154,29 +157,57 @@ async function loadStands() {
   standGrid.innerHTML = '';
   for (const id of STANDS) {
     const { podium } = await api(`/api/admin/stand/${id}/podium`);
-    const current = { 1: null, 2: null, 3: null };
-    podium.forEach(r => { if (r.participant) current[r.position] = r.participant.id; });
+    
+    // Group podium entries by round
+    const current = {};
+    for (let r = 1; r <= 5; r++) {
+      current[r] = { 1: null, 2: null, 3: null };
+    }
+    
+    podium.forEach(row => {
+      if (row.participant && current[row.round]) {
+        current[row.round][row.position] = row.participant.id;
+      }
+    });
 
     const card = document.createElement('div');
     card.className = 'stand-card';
+    card.dataset.stand = id;
+    card.dataset.activeRound = 1; // Default to round 1
+
+    const tabsHtml = `
+      <div class="stand-tabs">
+        ${[1, 2, 3, 4, 5].map(r => `
+          <button class="tab-btn ${r === 1 ? 'active' : ''}" data-round-btn="${r}">R${r}</button>
+        `).join('')}
+      </div>
+    `;
+
+    const roundsHtml = [1, 2, 3, 4, 5].map(r => `
+      <div class="round-podium" data-round-content="${r}" style="${r === 1 ? '' : 'display: none;'}">
+        ${[1, 2, 3].map(pos => `
+          <div class="podium-row">
+            <div class="podium-pos p${pos}">
+              ${pos}º
+              <div class="podium-pts">+${POINTS_BY_POS[pos]}pts</div>
+            </div>
+            <select class="field-input" data-stand="${id}" data-round="${r}" data-pos="${pos}">
+              <option value="">— vacío —</option>
+              ${participantsCache.map(p => `
+                <option value="${p.id}" ${current[r][pos] === p.id ? 'selected' : ''}>
+                  ${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+
     card.innerHTML = `
       <h3>STAND ${id}</h3>
-      ${[1, 2, 3].map(pos => `
-        <div class="podium-row">
-          <div class="podium-pos p${pos}">
-            ${pos}º
-            <div class="podium-pts">+${POINTS_BY_POS[pos]}pts</div>
-          </div>
-          <select class="field-input" data-stand="${id}" data-pos="${pos}">
-            <option value="">— vacío —</option>
-            ${participantsCache.map(p => `
-              <option value="${p.id}" ${current[pos] === p.id ? 'selected' : ''}>
-                ${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}
-              </option>
-            `).join('')}
-          </select>
-        </div>
-      `).join('')}
+      ${tabsHtml}
+      ${roundsHtml}
       <div class="stand-actions">
         <button class="btn-ghost" data-clear="${id}">LIMPIAR</button>
         <button class="btn-ghost" data-save="${id}">GUARDAR</button>
@@ -185,29 +216,42 @@ async function loadStands() {
     standGrid.appendChild(card);
   }
 
+  // Setup tab click event listeners
+  standGrid.querySelectorAll('.stand-card').forEach(card => {
+    const tabBtns = card.querySelectorAll('[data-round-btn]');
+    const roundContents = card.querySelectorAll('[data-round-content]');
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const selectedRound = Number(btn.dataset.roundBtn);
+        card.dataset.activeRound = selectedRound;
+        tabBtns.forEach(b => b.classList.toggle('active', Number(b.dataset.roundBtn) === selectedRound));
+        roundContents.forEach(c => {
+          c.style.display = Number(c.dataset.roundContent) === selectedRound ? '' : 'none';
+        });
+      });
+    });
+  });
+
+  // Setup save and clear click event listeners
   standGrid.querySelectorAll('[data-save]').forEach(btn => {
     btn.addEventListener('click', () => savePodium(Number(btn.dataset.save)));
   });
   standGrid.querySelectorAll('[data-clear]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = Number(btn.dataset.clear);
-      standGrid.querySelectorAll(`select[data-stand="${id}"]`).forEach(s => s.value = '');
+      const card = standGrid.querySelector(`.stand-card[data-stand="${id}"]`);
+      const activeRound = Number(card.dataset.activeRound || 1);
+      standGrid.querySelectorAll(`select[data-stand="${id}"][data-round="${activeRound}"]`).forEach(s => s.value = '');
     });
   });
 }
 
 async function savePodium(standId) {
-  const get = pos => {
-    const sel = standGrid.querySelector(`select[data-stand="${standId}"][data-pos="${pos}"]`);
-    return sel.value || null;
-  };
-  const body = { first: get(1), second: get(2), third: get(3) };
   try {
-    await api(`/api/admin/stand/${standId}/podium`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    showToast(`Stand ${standId} guardado`);
+    const card = standGrid.querySelector(`.stand-card[data-stand="${standId}"]`);
+    const activeRound = Number(card.dataset.activeRound || 1);
+    await savePodiumSilent(standId, activeRound);
+    showToast(`Stand ${standId} - Ronda ${activeRound} guardada`);
     await loadLeaderboard();
   } catch (err) {
     showToast(err.message, true);

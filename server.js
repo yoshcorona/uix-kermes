@@ -93,16 +93,24 @@ app.get('/api/me/:id', async (req, res) => {
   const { data: scores } = await supabase
     .from('scores').select('*').eq('participant_id', id);
 
-  const byStand = new Map((scores || []).map(s => [s.stand_id, s]));
-  const breakdown = (stands || []).map(s => {
-    const sc = byStand.get(s.id);
-    const pos = sc ? sc.position : null;
-    return {
-      stand_id: s.id,
-      stand_name: s.name,
-      position: pos,
-      points: pos ? (POINTS_BY_POSITION[pos] || 0) : 0,
-    };
+  const breakdown = [];
+  const scoresByStandAndRound = new Map();
+  (scores || []).forEach(sc => {
+    scoresByStandAndRound.set(`${sc.stand_id}-${sc.round}`, sc);
+  });
+
+  (stands || []).forEach(s => {
+    for (let r = 1; r <= 5; r++) {
+      const sc = scoresByStandAndRound.get(`${s.id}-${r}`);
+      const pos = sc ? sc.position : null;
+      breakdown.push({
+        stand_id: s.id,
+        stand_name: s.name,
+        round: r,
+        position: pos,
+        points: pos ? (POINTS_BY_POSITION[pos] || 0) : 0,
+      });
+    }
   });
   const total = breakdown.reduce((a, b) => a + b.points, 0);
 
@@ -154,19 +162,26 @@ app.get('/api/admin/stand/:standId/podium', requireAdmin, async (req, res) => {
   const standId = Number(req.params.standId);
   const { data, error } = await supabase
     .from('scores')
-    .select('position, points, participant:participants(id, first_name, last_name)')
+    .select('round, position, points, participant:participants(id, first_name, last_name)')
     .eq('stand_id', standId)
+    .order('round')
     .order('position');
   if (error) return res.status(500).json({ error: error.message });
   res.json({ podium: data });
 });
 
-// Reemplaza el podio completo de un stand. Body: { first, second, third } con UUIDs o null.
+// Reemplaza el podio completo de un stand para una ronda específica. Body: { round, first, second, third } con UUIDs o null.
 app.post('/api/admin/stand/:standId/podium', requireAdmin, async (req, res) => {
   const standId = Number(req.params.standId);
+  const round = Number(req.body.round || 1);
+
   if (!Number.isInteger(standId) || standId < 1 || standId > 5) {
     return res.status(400).json({ error: 'Stand inválido' });
   }
+  if (!Number.isInteger(round) || round < 1 || round > 5) {
+    return res.status(400).json({ error: 'Ronda inválida' });
+  }
+
   const slots = [
     { position: 1, participant_id: req.body.first  || null },
     { position: 2, participant_id: req.body.second || null },
@@ -175,17 +190,18 @@ app.post('/api/admin/stand/:standId/podium', requireAdmin, async (req, res) => {
 
   const ids = slots.map(s => s.participant_id).filter(Boolean);
   if (new Set(ids).size !== ids.length) {
-    return res.status(400).json({ error: 'Un participante no puede ocupar dos lugares en el mismo stand' });
+    return res.status(400).json({ error: 'Un participante no puede ocupar dos lugares en la misma ronda de un stand' });
   }
 
   const { error: delErr } = await supabase
-    .from('scores').delete().eq('stand_id', standId);
+    .from('scores').delete().eq('stand_id', standId).eq('round', round);
   if (delErr) return res.status(500).json({ error: delErr.message });
 
   const rows = slots
     .filter(s => s.participant_id)
     .map(s => ({
       stand_id: standId,
+      round: round,
       participant_id: s.participant_id,
       position: s.position,
       points: POINTS_BY_POSITION[s.position],
@@ -196,6 +212,16 @@ app.post('/api/admin/stand/:standId/podium', requireAdmin, async (req, res) => {
     if (insErr) return res.status(500).json({ error: insErr.message });
   }
 
+  res.json({ ok: true });
+});
+
+// Limpia todos los podios de todas las rondas y stands de forma segura
+app.post('/api/admin/clear-all', requireAdmin, async (req, res) => {
+  const { error } = await supabase
+    .from('scores')
+    .delete()
+    .neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 

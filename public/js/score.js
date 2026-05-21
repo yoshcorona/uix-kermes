@@ -19,6 +19,16 @@ const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
   (window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
 if (IS_TOUCH) document.body.classList.add('touch');
 
+// Adaptar textos de la pantalla de bienvenida para móvil
+if (IS_TOUCH) {
+  const ctaEl = document.querySelector('.lockhint-cta');
+  if (ctaEl) ctaEl.textContent = 'TOCA PARA EXPLORAR';
+  const keysEl = document.querySelector('.lockhint-keys');
+  if (keysEl) keysEl.textContent = 'JOYSTICK · MOVER  ·  ARRASTRA · MIRAR  ·  BOTÓN E · INTERACTUAR';
+  const hudTipEl = document.getElementById('hudTip');
+  if (hudTipEl) hudTipEl.textContent = 'TOCA PARA EXPLORAR';
+}
+
 const PALETTE = {
   bg:       0x07070F,
   floor:    0x0a0a1e,
@@ -34,26 +44,13 @@ const PALETTE = {
 };
 
 const ROOM = { w: 16, d: 16, h: 5 };
-const CAB_POS = new THREE.Vector3(0, 0, 0);
+let CAB_POS;
 const INTERACT_RADIUS = 3.2;
 
-const canvas = document.getElementById('three');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(PALETTE.bg);
-
-const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(PALETTE.bg, 8, 22);
-
-const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 100);
-camera.position.set(0, 1.6, 2.8);
-
-window.addEventListener('resize', () => {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-});
+let canvas;
+let renderer;
+let scene;
+let camera;
 
 /* =========================================================
    ROOM
@@ -1642,58 +1639,8 @@ const scoreOverlay = document.getElementById('scoreOverlay');
 
 function lock() {
   if (IS_TOUCH) return;
-  canvas.requestPointerLock();
+  if (canvas) canvas.requestPointerLock();
 }
-
-canvas.addEventListener('click', () => {
-  if (mode === 'zoom') return;
-  if (!musicEnabled) startMusic();
-  if (!isLocked) lock();
-});
-
-document.addEventListener('pointerlockchange', () => {
-  isLocked = document.pointerLockElement === canvas;
-  document.body.classList.toggle('locked', isLocked);
-  lockHint.classList.toggle('hidden', isLocked || mode === 'zoom');
-  hudTip.textContent = isLocked
-    ? 'WASD MOVERSE · MOUSE MIRAR · E INTERACTUAR'
-    : 'CLICK PARA EXPLORAR';
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (!isLocked || mode !== 'roam') return;
-  camState.yaw   -= e.movementX * 0.0025;
-  camState.pitch -= e.movementY * 0.0025;
-  const lim = Math.PI / 2 - 0.05;
-  camState.pitch = Math.max(-lim, Math.min(lim, camState.pitch));
-});
-
-document.addEventListener('keydown', (e) => {
-  if (mode === 'zoom') {
-    if (e.code === 'Escape') zoomOut();
-    return;
-  }
-  switch (e.code) {
-    case 'KeyW': case 'ArrowUp':    move.f = true; break;
-    case 'KeyS': case 'ArrowDown':  move.b = true; break;
-    case 'KeyA': case 'ArrowLeft':  move.l = true; break;
-    case 'KeyD': case 'ArrowRight': move.r = true; break;
-    case 'KeyE': case 'Space':
-      e.preventDefault();
-      if (nearCabinet()) zoomIn();
-      break;
-  }
-});
-document.addEventListener('keyup', (e) => {
-  switch (e.code) {
-    case 'KeyW': case 'ArrowUp':    move.f = false; break;
-    case 'KeyS': case 'ArrowDown':  move.b = false; break;
-    case 'KeyA': case 'ArrowLeft':  move.l = false; break;
-    case 'KeyD': case 'ArrowRight': move.r = false; break;
-  }
-});
-
-document.getElementById('scoreBack').addEventListener('click', zoomOut);
 
 /* ---------- Touch controls ---------- */
 function setupTouch() {
@@ -1950,7 +1897,10 @@ function zoomOut() {
     yaw: savedCam.yaw, pitch: savedCam.pitch,
     duration: 900,
     easing: 'easeInOutCubic',
-    complete: () => { mode = 'roam'; lockHint.classList.remove('hidden'); },
+    complete: () => {
+      mode = 'roam';
+      if (!IS_TOUCH) lockHint.classList.remove('hidden');
+    },
   });
 }
 
@@ -2012,7 +1962,7 @@ function updateCamera() {
 }
 
 function updateInteractPrompt() {
-  const show = mode === 'roam' && isLocked && nearCabinet();
+  const show = mode === 'roam' && (isLocked || IS_TOUCH) && nearCabinet();
   interactPrompt.classList.toggle('show', show);
 }
 
@@ -2046,29 +1996,127 @@ function loop() {
 }
 
 /* =========================================================
-   BOOT
+   BOOT & ROUTING
    ========================================================= */
-buildRoom();
-buildCabinet();
-buildArcadeHall();
-buildSodaFountain();
-buildDecor();
-buildUixFrames();
-buildNpcs();
-buildSodaNpcs();
-buildDynamicLights();
 
-document.getElementById('musicBtn').addEventListener('click', (e) => {
-  e.stopPropagation();
-  toggleMusic();
-});
-if (IS_TOUCH) {
-  setupTouch();
-  lockHint.querySelector('.lockhint-cta').textContent = 'TOCA PARA EMPEZAR';
-  lockHint.querySelector('.lockhint-keys').textContent = 'JOYSTICK · ARRASTRA · BOTÓN E';
-  document.body.addEventListener('touchstart', () => {
+function init3D() {
+  CAB_POS = new THREE.Vector3(0, 0, 0);
+  canvas = document.getElementById('three');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(PALETTE.bg);
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(PALETTE.bg, 8, 22);
+
+  camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 100);
+  camera.position.set(0, 1.6, 2.8);
+
+  window.addEventListener('resize', () => {
+    if (renderer && camera) {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    }
+  });
+
+  buildRoom();
+  buildCabinet();
+  buildArcadeHall();
+  buildSodaFountain();
+  buildDecor();
+  buildUixFrames();
+  buildNpcs();
+  buildSodaNpcs();
+  buildDynamicLights();
+
+  // Event Listeners de 3D
+  canvas.addEventListener('click', () => {
+    if (mode === 'zoom') return;
+    if (!musicEnabled) startMusic();
+    if (!isLocked) lock();
+  });
+
+  document.addEventListener('pointerlockchange', () => {
+    isLocked = document.pointerLockElement === canvas;
+    document.body.classList.toggle('locked', isLocked);
+    lockHint.classList.toggle('hidden', isLocked || mode === 'zoom');
+    hudTip.textContent = isLocked
+      ? 'WASD MOVERSE · MOUSE MIRAR · E INTERACTUAR'
+      : 'CLICK PARA EXPLORAR';
+  });
+
+  // Listener para descartar el lockHint recurrente y asegurar juego en móvil
+  lockHint.addEventListener('click', () => {
     lockHint.classList.add('hidden');
-    hudTip.textContent = 'JOYSTICK · MIRA · BOTÓN E';
-  }, { once: true });
+    document.body.classList.add('unlocked'); // revela el botón VER MI SCORE
+    if (!musicEnabled) startMusic();
+    if (IS_TOUCH) {
+      const tip = document.getElementById('hudTip');
+      if (tip) tip.textContent = 'JOYSTICK · MIRA · BOTÓN E';
+    } else {
+      lock();
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isLocked || mode !== 'roam') return;
+    camState.yaw   -= e.movementX * 0.0025;
+    camState.pitch -= e.movementY * 0.0025;
+    const lim = Math.PI / 2 - 0.05;
+    camState.pitch = Math.max(-lim, Math.min(lim, camState.pitch));
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (mode === 'zoom') {
+      if (e.code === 'Escape') zoomOut();
+      return;
+    }
+    switch (e.code) {
+      case 'KeyW': case 'ArrowUp':    move.f = true; break;
+      case 'KeyS': case 'ArrowDown':  move.b = true; break;
+      case 'KeyA': case 'ArrowLeft':  move.l = true; break;
+      case 'KeyD': case 'ArrowRight': move.r = true; break;
+      case 'KeyE': case 'Space':
+        e.preventDefault();
+        if (nearCabinet()) zoomIn();
+        break;
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    switch (e.code) {
+      case 'KeyW': case 'ArrowUp':    move.f = false; break;
+      case 'KeyS': case 'ArrowDown':  move.b = false; break;
+      case 'KeyA': case 'ArrowLeft':  move.l = false; break;
+      case 'KeyD': case 'ArrowRight': move.r = false; break;
+    }
+  });
+
+  document.getElementById('scoreBack').addEventListener('click', zoomOut);
+
+  document.getElementById('musicBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMusic();
+  });
+
+  // Configuración de controles táctiles en caso de pantallas móviles
+  if (IS_TOUCH) {
+    setupTouch();
+  }
+
+  // Cablear el botón flotante de piloto automático ("VER MI SCORE")
+  const mobileEasyBtn = document.getElementById('mobileEasyBtn');
+  if (mobileEasyBtn) {
+    mobileEasyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (mode === 'roam') zoomIn();
+    });
+  }
+
+  loop();
 }
-loop();
+
+// INICIALIZACIÓN UNIVERSAL EN 3D
+init3D();
