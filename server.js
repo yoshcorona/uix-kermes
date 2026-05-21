@@ -28,20 +28,38 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const POINTS_BY_POSITION = { 1: 5, 2: 3, 3: 1 };
 
-const adminTokens = new Set();
+// Auth stateless con HMAC — funciona en Vercel serverless (no depende de memoria)
+const ADMIN_SECRET = (ADMIN_PASSWORD || 'fallback') + '_uixkermes';
+
 function issueAdminToken() {
-  const t = crypto.randomBytes(24).toString('hex');
-  adminTokens.add(t);
-  return t;
+  const payload = `admin:${Date.now()}`;
+  const sig = crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
 }
+
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token || !adminTokens.has(token)) {
-    return res.status(401).json({ error: 'No autorizado' });
+  if (!token) return res.status(401).json({ error: 'No autorizado' });
+
+  const dotIdx = token.lastIndexOf('.');
+  if (dotIdx < 0) return res.status(401).json({ error: 'Token inválido' });
+
+  const payload = token.slice(0, dotIdx);
+  const sig     = token.slice(dotIdx + 1);
+  const expected = crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest('hex');
+
+  if (sig !== expected) return res.status(401).json({ error: 'No autorizado' });
+
+  // Expiración: 24 horas
+  const ts = parseInt((payload.split(':')[1]) || '0', 10);
+  if (Date.now() - ts > 24 * 60 * 60 * 1000) {
+    return res.status(401).json({ error: 'Sesión expirada, vuelve a iniciar sesión' });
   }
+
   next();
 }
+
 
 function clean(s) {
   return String(s || '').trim().replace(/\s+/g, ' ');
