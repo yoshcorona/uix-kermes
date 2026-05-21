@@ -8,11 +8,11 @@ const partBody   = document.getElementById('participantsBody');
 const toast      = document.getElementById('toast');
 const logoutBtn  = document.getElementById('adminLogout');
 
-const STANDS = [1, 2, 3, 4, 5];
 const POINTS_BY_POS = { 1: 5, 2: 3, 3: 1 };
 
 let token = localStorage.getItem('uix_admin_token') || null;
 let participantsCache = [];
+let standsCache = []; // [{id, name}] cargado desde Supabase
 
 function api(path, opts = {}) {
   return fetch(path, {
@@ -53,9 +53,9 @@ logoutBtn.addEventListener('click', logout);
 document.getElementById('saveAllBtn').addEventListener('click', async () => {
   try {
     const promises = [];
-    for (const id of STANDS) {
+    for (const stand of standsCache) {
       for (let r = 1; r <= 5; r++) {
-        promises.push(savePodiumSilent(id, r));
+        promises.push(savePodiumSilent(stand.id, r));
       }
     }
     await Promise.all(promises);
@@ -155,15 +155,25 @@ async function loadParticipants() {
 
 async function loadStands() {
   standGrid.innerHTML = '';
-  for (const id of STANDS) {
+
+  // Obtener nombres reales desde Supabase
+  try {
+    const res = await api('/api/stands');
+    standsCache = res.stands || [];
+  } catch (_) {
+    standsCache = [1,2,3,4,5].map(i => ({ id: i, name: `STAND ${i}` }));
+  }
+
+  for (const stand of standsCache) {
+    const id = stand.id;
+    const standName = stand.name;
     const { podium } = await api(`/api/admin/stand/${id}/podium`);
-    
-    // Group podium entries by round
+
+    // Agrupar podio por ronda
     const current = {};
     for (let r = 1; r <= 5; r++) {
       current[r] = { 1: null, 2: null, 3: null };
     }
-    
     podium.forEach(row => {
       if (row.participant && current[row.round]) {
         current[row.round][row.position] = row.participant.id;
@@ -173,7 +183,7 @@ async function loadStands() {
     const card = document.createElement('div');
     card.className = 'stand-card';
     card.dataset.stand = id;
-    card.dataset.activeRound = 1; // Default to round 1
+    card.dataset.activeRound = 1;
 
     const tabsHtml = `
       <div class="stand-tabs">
@@ -205,7 +215,7 @@ async function loadStands() {
     `).join('');
 
     card.innerHTML = `
-      <h3>STAND ${id}</h3>
+      <h3>${escapeHtml(standName)}</h3>
       ${tabsHtml}
       ${roundsHtml}
       <div class="stand-actions">

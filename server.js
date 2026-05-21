@@ -65,6 +65,15 @@ function clean(s) {
   return String(s || '').trim().replace(/\s+/g, ' ');
 }
 
+// ---------- STANDS ----------
+
+app.get('/api/stands', async (_req, res) => {
+  const { data, error } = await supabase
+    .from('stands').select('id, name').order('id');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ stands: data });
+});
+
 // ---------- PARTICIPANTES ----------
 
 app.post('/api/login', async (req, res) => {
