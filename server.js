@@ -13,11 +13,9 @@ const {
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error('Falta SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env');
-  process.exit(1);
 }
 if (!ADMIN_PASSWORD) {
   console.error('Falta ADMIN_PASSWORD en .env');
-  process.exit(1);
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -225,12 +223,17 @@ app.post('/api/admin/clear-all', requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- RUTAS HTML ----------
-
+// Rutas HTML
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/score', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'score.html')));
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-app.listen(PORT, () => {
-  console.log(`Kermes scoring server :: http://localhost:${PORT}`);
-});
+// Solo arrancar el servidor HTTP en desarrollo local
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Kermes scoring server :: http://localhost:${PORT}`);
+  });
+}
+
+// Exportar para Vercel (serverless)
+module.exports = app;
