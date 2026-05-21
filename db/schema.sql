@@ -18,11 +18,11 @@ create table if not exists stands (
 );
 
 insert into stands (id, name) values
-  (1, 'STAND 1'),
-  (2, 'STAND 2'),
-  (3, 'STAND 3'),
-  (4, 'STAND 4'),
-  (5, 'STAND 5')
+  (1, 'STAND MARTIN'),
+  (2, 'STAND YOSH'),
+  (3, 'STAND LILY'),
+  (4, 'STAND HECTOR'),
+  (5, 'STAND SHINTA')
 on conflict (id) do nothing;
 
 -- Por stand hay 5 rondas, y por cada ronda hay 3 lugares (1º=5pts, 2º=3pts, 3º=1pt).
